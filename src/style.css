@@ -319,7 +319,7 @@ kbd {
   inset: 0;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle at 50% 30%, rgba(214, 40, 40, 0.55), rgba(15, 17, 22, 0.88));
+  background: radial-gradient(circle at 50% 45%, rgba(15, 17, 22, 0.15), rgba(15, 17, 22, 0.7));
   z-index: 10;
   padding: 16px;
   overflow: auto;
@@ -463,5 +463,17 @@ kbd {
   #mission {
     max-width: 58vw;
     padding: 8px 10px;
+  }
+}
+
+/* En pantallas anchas el menú se aparta a la izquierda para dejar ver la ciudad */
+@media (min-width: 1000px) {
+  #menu {
+    justify-items: start;
+    padding-left: 5vw;
+    background: linear-gradient(90deg, rgba(15, 17, 22, 0.72), rgba(15, 17, 22, 0.25) 55%, rgba(15, 17, 22, 0) 80%);
+  }
+  #menu .card {
+    max-width: 500px;
   }
 }

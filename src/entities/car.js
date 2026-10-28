@@ -16,6 +16,23 @@ function part(geo, color, x, y, z) {
 }
 
 const geoCache = new Map();
+
+// Estrecha la parte superior de una caja (x por `k`, z por `kz`)
+function taper(g, k, kz) {
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    if (p.getY(i) > 0) {
+      p.setX(i, p.getX(i) * (1 - k));
+      p.setZ(i, p.getZ(i) * kz);
+    }
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+function shade(hex, k) {
+  return '#' + new THREE.Color(hex).multiplyScalar(k).getHexString();
+}
 const carMat = new THREE.MeshLambertMaterial({ vertexColors: true });
 
 export const CAR_COLORS = ['#e63946', '#f4a261', '#2a9d8f', '#457b9d', '#e9c46a', '#8d6cab', '#f1faee', '#ff7aa2', '#5fb85b', '#3b3b44'];
@@ -26,20 +43,27 @@ function carGeometry(color, kind) {
   const parts = [];
   const body = kind === 'police' ? '#f5f7fa' : color;
   const L = kind === 'van' ? 4.6 : 4.1;
-  parts.push(part(new THREE.BoxGeometry(1.9, 0.7, L), body, 0, 0.65, 0));
+  // carrocería con capó y maletero algo más bajos y aristas achaflanadas
+  parts.push(part(taper(new THREE.BoxGeometry(1.9, 0.62, L), 0.06, 0.92), body, 0, 0.62, 0));
+  parts.push(part(new THREE.BoxGeometry(1.94, 0.12, L - 0.3), shade(body, 0.75), 0, 0.36, 0));
   if (kind === 'van') {
-    parts.push(part(new THREE.BoxGeometry(1.84, 1.25, 3.2), body, 0, 1.6, -0.5));
-    parts.push(part(new THREE.BoxGeometry(1.7, 0.5, 0.1), '#33475b', 0, 1.75, 1.12));
+    parts.push(part(taper(new THREE.BoxGeometry(1.84, 1.25, 3.2), 0.04, 0.96), body, 0, 1.55, -0.5));
+    parts.push(part(new THREE.BoxGeometry(1.7, 0.55, 0.1), '#3a5670', 0, 1.7, 1.12));
+    parts.push(part(new THREE.BoxGeometry(1.86, 0.45, 2.2), '#3a5670', 0, 1.6, -0.6));
   } else {
-    parts.push(part(new THREE.BoxGeometry(1.66, 0.62, 2.1), '#33475b', 0, 1.3, -0.25));
-    parts.push(part(new THREE.BoxGeometry(1.72, 0.12, 2.0), body, 0, 1.66, -0.25));
+    // habitáculo trapezoidal (parabrisas inclinado)
+    parts.push(part(taper(new THREE.BoxGeometry(1.7, 0.66, 2.3), 0.12, 0.72), body, 0, 1.25, -0.2));
+    parts.push(part(taper(new THREE.BoxGeometry(1.74, 0.5, 2.36), 0.1, 0.74), '#3a5670', 0, 1.24, -0.2));
   }
+  // retrovisores y manillas
+  parts.push(part(new THREE.BoxGeometry(0.2, 0.14, 0.12), body, 0.98, 1.05, 0.55));
+  parts.push(part(new THREE.BoxGeometry(0.2, 0.14, 0.12), body, -0.98, 1.05, 0.55));
   if (kind === 'police') {
     parts.push(part(new THREE.BoxGeometry(1.94, 0.3, 2.2), '#1d4ed8', 0, 0.72, 0));
-    parts.push(part(new THREE.BoxGeometry(1.0, 0.12, 0.5), '#1d4ed8', 0, 1.76, -0.25));
+    parts.push(part(new THREE.BoxGeometry(1.0, 0.12, 0.5), '#1d4ed8', 0, 1.6, -0.2));
   }
   if (kind === 'taxi') {
-    parts.push(part(new THREE.BoxGeometry(0.7, 0.25, 0.3), '#fff6a5', 0, 1.85, -0.25));
+    parts.push(part(new THREE.BoxGeometry(0.7, 0.25, 0.3), '#fff6a5', 0, 1.7, -0.2));
   }
   // faros y pilotos
   parts.push(part(new THREE.BoxGeometry(0.4, 0.2, 0.08), '#fff7cc', 0.6, 0.75, L / 2));
@@ -52,8 +76,11 @@ function carGeometry(color, kind) {
   // ruedas
   const wheel = new THREE.CylinderGeometry(0.36, 0.36, 0.3, 10);
   wheel.rotateZ(Math.PI / 2);
+  const hub = new THREE.CylinderGeometry(0.2, 0.2, 0.08, 8);
+  hub.rotateZ(Math.PI / 2);
   for (const [wx, wz] of [[0.92, L / 2 - 0.8], [-0.92, L / 2 - 0.8], [0.92, -L / 2 + 0.8], [-0.92, -L / 2 + 0.8]]) {
     parts.push(part(wheel, '#1f1f24', wx, 0.36, wz));
+    parts.push(part(hub, '#c9ccd1', wx * 1.09, 0.36, wz));
   }
   const g = mergeGeometries(parts, false);
   geoCache.set(key, g);
@@ -77,8 +104,8 @@ export class Car {
     if (kind === 'police') {
       this.sirenL = new THREE.Mesh(sirenGeo, sirenOff);
       this.sirenR = new THREE.Mesh(sirenGeo, sirenOff);
-      this.sirenL.position.set(0.3, 1.84, -0.25);
-      this.sirenR.position.set(-0.3, 1.84, -0.25);
+      this.sirenL.position.set(0.3, 1.68, -0.2);
+      this.sirenR.position.set(-0.3, 1.68, -0.2);
       this.mesh.add(this.sirenL, this.sirenR);
     }
     scene.add(this.mesh);

@@ -15,6 +15,48 @@ import { CameraRig } from './camera.js';
 import { Sfx } from './audio.js';
 import { clamp } from './geo.js';
 
+// Cúpula de cielo con degradado, halo del sol y nubes suaves (shader propio).
+function makeSky() {
+  const geo = new THREE.SphereGeometry(800, 32, 16);
+  const mat = new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    depthWrite: false,
+    fog: false,
+    uniforms: {
+      top: { value: new THREE.Color('#4f8fd6') },
+      horizon: { value: new THREE.Color('#f6dcb6') },
+      sunDir: { value: new THREE.Vector3(-70, 85, 55).normalize() },
+    },
+    vertexShader: `varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); gl_Position.z = gl_Position.w; }`,
+    fragmentShader: `
+      uniform vec3 top; uniform vec3 horizon; uniform vec3 sunDir; varying vec3 vDir;
+      float h(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
+      float n(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+        return mix(mix(h(i),h(i+vec2(1,0)),f.x), mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x), f.y); }
+      void main(){
+        vec3 d = normalize(vDir);
+        float t = clamp(d.y * 1.6, 0.0, 1.0);
+        vec3 col = mix(horizon, top, pow(t, 0.7));
+        float s = max(dot(d, sunDir), 0.0);
+        col += vec3(1.0, 0.8, 0.55) * (pow(s, 8.0) * 0.35 + pow(s, 400.0) * 3.0);
+        if (d.y > 0.02) {
+          vec2 p = d.xz / (d.y + 0.15) * 2.2;
+          float c = n(p) * 0.6 + n(p * 2.3) * 0.3 + n(p * 5.1) * 0.1;
+          c = smoothstep(0.55, 0.85, c) * smoothstep(0.02, 0.25, d.y);
+          col = mix(col, vec3(1.0, 0.97, 0.93), c * 0.75);
+        }
+        if (d.y < 0.0) col = horizon * 0.95;
+        gl_FragColor = vec4(col, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`,
+  });
+  const m = new THREE.Mesh(geo, mat);
+  m.frustumCulled = false;
+  m.renderOrder = -1;
+  return m;
+}
+
 class Game {
   constructor() {
     const canvas = document.getElementById('game');
@@ -24,15 +66,20 @@ class Game {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.15;
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color('#9fd0f5');
-    this.scene.fog = new THREE.Fog('#bfe0f7', 160, 520);
-    this.camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.3, 600);
+    this.scene.fog = new THREE.Fog('#f3d9b8', 170, 560);
+    this.camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.3, 900);
+    this.sky = makeSky();
+    this.scene.add(this.sky);
 
-    const hemi = new THREE.HemisphereLight('#e3f1ff', '#8f7d5d', 1.7);
+    // Luz de tarde dorada: cielo azul claro + sol bajo y cálido
+    const hemi = new THREE.HemisphereLight('#cfe3ff', '#a08a68', 1.5);
     this.scene.add(hemi);
-    this.sun = new THREE.DirectionalLight('#fff3dc', 2.3);
+    this.sunOffset = new THREE.Vector3(-70, 85, 55);
+    this.sun = new THREE.DirectionalLight('#ffd9a8', 3.1);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
     const sc = this.sun.shadow.camera;
@@ -42,8 +89,9 @@ class Game {
     sc.bottom = -85;
     sc.near = 1;
     sc.far = 260;
-    this.sun.shadow.bias = -0.0006;
-    this.sun.shadow.normalBias = 0.4;
+    this.sun.shadow.bias = -0.0005;
+    this.sun.shadow.normalBias = 0.35;
+    this.sun.shadow.radius = 2.5;
     this.scene.add(this.sun, this.sun.target);
 
     // ---- Mundo ----
@@ -375,14 +423,15 @@ class Game {
         this.cameraRig.shake = Math.min(1, h.force / 10);
         const other = h.a === pcar ? h.b : h.a;
         // solo cuenta si eres tú quien embiste
-        if (other.driver === 'police' && h.force > 6 && pcar.speed > other.speed + 2) this.police.add(1, 'embestir a la policía');
+        if (other.driver === 'police' && h.force > 6 && pcar.speed > other.speed + 2 && ax.y > 0.3) this.police.add(1, 'embestir a la policía');
       }
     }
 
     // cámara, sol y HUD
     const target = this.playerPos();
     this.cameraRig.update(dt, target, input, this.grid, !!this.player.car);
-    this.sun.position.set(target.x + 60, 120, target.z + 40);
+    this.sun.position.set(target.x + this.sunOffset.x, this.sunOffset.y, target.z + this.sunOffset.z);
+    this.sky.position.set(target.x, 0, target.z);
     this.sun.target.position.set(target.x, 0, target.z);
     this.hud.update(dt, this.time);
     const siren = this.police.cars.reduce((m, c) => (c.sirenOn ? Math.max(m, 1 - Math.hypot(c.x - target.x, c.z - target.z) / 120) : m), 0);
@@ -427,13 +476,9 @@ class Game {
     const dt = Math.min(this.timer.getDelta(), 0.05);
     if (this.running && !this.paused) this.update(dt);
     else if (!this.running) {
-      // vista de presentación girando sobre la Plaza del Castillo
+      // presentación: recorrido de cámara por los hitos del Casco Viejo
       this.time += dt;
-      const c = this.zones.byId.castillo;
-      this.camera.position.set(c.x + Math.sin(this.time * 0.08) * 120, 70, c.z + Math.cos(this.time * 0.08) * 120);
-      this.camera.lookAt(c.x, 0, c.z);
-      this.sun.position.set(c.x + 60, 120, c.z + 40);
-      this.sun.target.position.set(c.x, 0, c.z);
+      this.introShot(this.time);
     }
     this.renderer.render(this.scene, this.camera);
     this.measureFps(dt);
@@ -459,11 +504,69 @@ class Game {
     }
   }
 
+  // Planos de presentación (menú): cada uno dura unos segundos con un travelling suave
+  introShot(t) {
+    if (!this.shots) {
+      const z = this.zones.byId;
+      this.shots = [];
+      for (const id of ['ayuntamiento', 'catedral', 'saturnino']) {
+        const v = z[id]?.view;
+        if (v) this.shots.push({ cam: v.cam, look: v.look, drift: 0.25 });
+      }
+      const c = z.castillo;
+      this.shots.splice(1, 0, { orbit: [c.x, c.z], r: 70, y: 28 });
+      const e = z.estafeta;
+      const st = this.city.streets.filter((s) => /estafeta/i.test(s.name || '')).sort((a, b) => b.pts.length - a.pts.length)[0];
+      if (st && st.pts.length > 1) {
+        const a = st.pts[0];
+        const b = st.pts[st.pts.length - 1];
+        this.shots.push({ cam: [a[0], 2.2, a[1]], look: [b[0], 3, b[1]], dolly: true });
+      } else if (e) this.shots.push({ orbit: [e.x, e.z], r: 30, y: 12 });
+      this.shots.push({ orbit: [c.x, c.z], r: 260, y: 140 });
+    }
+    const dur = 7;
+    const i = Math.floor(t / dur) % this.shots.length;
+    const k = (t % dur) / dur;
+    const s = this.shots[i];
+    let cx;
+    let cy;
+    let cz;
+    let lx;
+    let ly;
+    let lz;
+    if (s.orbit) {
+      const a = t * 0.06 + i;
+      cx = s.orbit[0] + Math.sin(a) * s.r;
+      cz = s.orbit[1] + Math.cos(a) * s.r;
+      cy = s.y;
+      lx = s.orbit[0];
+      ly = 2;
+      lz = s.orbit[1];
+    } else {
+      const dx = s.look[0] - s.cam[0];
+      const dz = s.look[2] - s.cam[2];
+      const m = s.dolly ? 0.55 * k : 0.12 * k;
+      // avance hacia el hito y ligero desplazamiento lateral
+      cx = s.cam[0] + dx * m + (s.drift ? -dz * s.drift * (k - 0.5) : 0);
+      cz = s.cam[2] + dz * m + (s.drift ? dx * s.drift * (k - 0.5) : 0);
+      cy = s.cam[1];
+      [lx, ly, lz] = s.look;
+    }
+    this.camera.position.set(cx, cy, cz);
+    this.camera.lookAt(lx, ly, lz);
+    this.sun.position.set(cx + this.sunOffset.x, this.sunOffset.y, cz + this.sunOffset.z);
+    this.sun.target.position.set(cx, 0, cz);
+    this.sky.position.set(cx, 0, cz);
+  }
+
   start() {
     this.running = true;
     this.sfx.init();
     this.cameraRig.first = true;
-    this.cameraRig.yaw = Math.PI;
+    // cámara detrás del jugador, mirando hacia su coche
+    const pp = this.player.person;
+    const car = this.allCars[0];
+    this.cameraRig.yaw = car ? Math.atan2(pp.x - car.x, pp.z - car.z) : Math.PI;
     this.hud.toast('Casco Viejo Rush', 'Busca un coche (E) y entra en un círculo de color para empezar una misión', 4);
   }
 }

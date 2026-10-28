@@ -4,7 +4,11 @@ Juego de navegador **original** de acción en mundo abierto, en clave cartoon, p
 
 Está hecho con **Three.js** + **Vite**, en 3D low-poly con cámara en tercera persona, y el mapa sale de **OpenStreetMap**.
 
-![Captura del juego](docs/captura.jpg)
+![Calle Estafeta con banderines, adoquín y comercios](docs/captura.jpg)
+
+| Ayuntamiento | Catedral de Santa María | Plaza del Castillo |
+| --- | --- | --- |
+| ![Ayuntamiento](docs/ayuntamiento.jpg) | ![Catedral](docs/catedral.jpg) | ![Plaza del Castillo](docs/plaza-del-castillo.jpg) |
 
 > Proyecto original sin relación con ninguna franquicia comercial: nombre, interfaz, modelos y sonidos están hechos para este juego (modelos generados por código y sonido sintetizado con WebAudio, sin assets externos).
 
@@ -74,9 +78,27 @@ Las misiones superadas se guardan en el navegador y suman puntos.
 El mapa se genera a partir de datos reales de OpenStreetMap obtenidos con la **Overpass API**:
 
 - Calles (con su tipo y nombre, preferentemente en castellano), huellas de edificios, plazas, parques y murallas del Casco Antiguo, guardados en [`data/casco-viejo.json`](data/casco-viejo.json).
-- Los edificios se extruyen a **3–5 plantas** (se usa `building:levels` cuando existe, si no una altura variable) con una textura de fachada con ventanas, contraventanas y balcones generada por código.
-- Las calles mantienen su anchura aproximada según el tipo de vía, así que las callejuelas son estrechas de verdad: los coches IA solo usan tramos con hueco suficiente entre fachadas.
-- **Hitos simplificados:** Plaza del Castillo (con su kiosco y arbolado), Calle Estafeta (con banderines rojos y blancos), Calle Mayor, Ayuntamiento (con remate), Catedral de Santa María (con sus dos torres), San Saturnino (torres de ladrillo), San Nicolás, Calle Mercaderes, Navarrería (con fuente), Parque de la Taconera, baluartes, portales y murallas.
+- Los edificios se extruyen a **3–5 plantas** (se usa `building:levels` cuando existe, si no una altura variable).
+- Las calles del Casco Viejo conservan su trazado real pero se **ensanchan un poco** (unos 6,8 m entre fachadas) apartando las fachadas que invaden la calzada, para que los coches no se atasquen en la Estafeta, la Calle Mayor o la Navarrería.
+
+### Aspecto visual
+
+Todo se genera por código (texturas en *canvas* y modelos con primitivas), sin imágenes externas:
+
+- **Fachadas pamplonesas:** cada edificio tiene su color (ocres, cremas, almagres, azulados…) y una combinación de plantas altas con **miradores acristalados**, **balcones de forja**, contraventanas verdes, marrones o azules, **geranios** y pañuelos rojos. Las plantas bajas mezclan **comercios con toldo**, **tabernas**, **portales de piedra con arco** y portones de madera. El revoco se tiñe y los detalles (madera, cristal, hierro, piedra) conservan su color.
+- **Tejados de teja árabe a cuatro aguas** con **aleros de madera**.
+- **Adoquinado de granito** en las calles del Casco Viejo, losas en las plazas, asfalto en las avenidas, césped en los parques y **sillería de piedra** en iglesias, baluartes y murallas.
+- **Hitos detallados:**
+  - **Ayuntamiento:** fachada barroca de tres cuerpos con columnas, balcones corridos, balaustrada, frontón con reloj y estatuas.
+  - **Catedral de Santa María:** fachada neoclásica con pórtico de columnas y frontón, y las dos torres-campanario con remate en forma de campana.
+  - **San Saturnino:** torres de ladrillo, una con aguja y pináculos, y relojes.
+  - **San Nicolás:** torre almenada.
+  - **Plaza del Castillo:** kiosco con cúpula verde, arbolado y terrazas con sombrillas.
+  - **Navarrería:** fuente de Santa Cecilia.
+  - Además: garitas en las puntas de los baluartes, el Monumento a los Fueros, portales y murallas.
+- **Ambiente festivo:** banderines rojos y blancos cruzando la Estafeta, Mercaderes, Calle Mayor, San Nicolás y alrededores, y **farolas fernandinas** junto a las fachadas.
+- **Luz de tarde dorada**, cielo con degradado, halo del sol y nubes, niebla cálida y *tone mapping* ACES.
+- En el menú, una **presentación** recorre el Ayuntamiento, la Plaza del Castillo, la Catedral, San Saturnino y la Estafeta.
 
 Para volver a descargar los datos:
 
@@ -92,8 +114,9 @@ El script (`scripts/fetch-osm.mjs`) prueba varios servidores Overpass públicos 
 
 Pensado para ir a 60 fps en un portátil normal:
 
-- Los edificios se **fusionan por sectores de 200 × 200 m** (2 mallas por sector), lo que reduce la ciudad a unas pocas decenas de *draw calls* y permite **frustum culling** por sector.
-- **Niebla y plano lejano** recortan lo que queda lejos; árboles y banderines usan **instancing**.
+- Los edificios se **fusionan por sectores de 200 × 200 m** (fachadas, piedra, tejados y aleros: 4 mallas por sector), lo que reduce la ciudad a unas pocas decenas de *draw calls* y permite **frustum culling** por sector. Las fachadas usan un único atlas de texturas con un *shader* que elige la variante de cada edificio.
+- Árboles, farolas, banderines y terrazas usan **instancing**.
+- **Niebla y plano lejano** recortan lo que queda lejos.
 - Las colisiones y la línea de visión de la policía usan una rejilla espacial 2D de segmentos (sin física 3D).
 - Sombras con un único mapa que sigue al jugador. Si el juego detecta que va por debajo de 40 fps, baja automáticamente a modo rendimiento (sin sombras y resolución 1×); también se puede alternar con `Q`.
 
@@ -103,7 +126,11 @@ Pensado para ir a 60 fps en un portátil normal:
 data/casco-viejo.json     Datos OSM simplificados
 scripts/fetch-osm.mjs     Descarga desde Overpass API
 src/main.js               Bucle principal, jugador, coches, eventos
-src/world/                Ciudad (extrusión, calles, murallas), hitos, colisiones, grafo de calles (A*)
+src/world/city.js         Ciudad: extrusión, ensanche de calles, tejados, suelos, murallas
+src/world/textures.js     Texturas procedurales (fachadas, teja, adoquín, piedra...) y shader de fachada
+src/world/monuments.js    Ayuntamiento, Catedral, San Saturnino, San Nicolás, kiosco, garitas...
+src/world/landmarks.js    Zonas con nombre, banderines, farolas, terrazas, árboles
+src/world/                Además: colisiones y grafo de calles (A*)
 src/entities/             Coches (física arcade) y personas
 src/systems/              Tráfico y peatones, policía, misiones
 src/ui/hud.js             Minimapa, mapa grande, velocímetro, estrellas, textos
@@ -115,7 +142,7 @@ src/input.js, audio.js    Controles (teclado/ratón/táctil) y sonido sintetizad
 
 - El táctil es básico (sin vibración ni ajuste de sensibilidad).
 - Los coches no se dañan ni vuelcan; `R` los recoloca si se atascan.
-- Los edificios son prismas con azotea plana: no hay tejados a dos aguas ni interiores.
+- Los tejados son una aproximación (cuatro aguas sobre la planta real) y no hay interiores.
 - El tráfico no respeta semáforos ni sentidos de circulación (en el Casco Viejo casi todo es peatonal).
 
 ## Atribución y licencias

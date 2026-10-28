@@ -88,6 +88,7 @@ export class Missions {
       const def = { ...m, sx: g.x[n], sz: g.z[n], node: n };
       def.beacon = makeBeacon(m.color, 4);
       def.beacon.position.set(def.sx, 0, def.sz);
+      def.beacon.visible = false; // se muestran al empezar a jugar
       game.scene.add(def.beacon);
       return def;
     });
