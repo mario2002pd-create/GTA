@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="description" content="Casco Viejo Rush: sandbox urbano cartoon por las calles del Casco Viejo de Pamplona." />
+    <title>Casco Viejo Rush</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9A%97%3C/text%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+
+    <div id="hud">
+      <div id="top-right">
+        <div id="stars"><span>★</span><span>★</span><span>★</span></div>
+        <div id="evade" hidden>
+          <small>Despistando…</small>
+          <div class="bar"><div id="evade-bar"></div></div>
+        </div>
+        <div id="score">0 pts</div>
+      </div>
+
+      <div id="mission" hidden>
+        <div id="mission-title"></div>
+        <div id="mission-text"></div>
+        <div id="mission-timer" hidden></div>
+      </div>
+
+      <div id="objective" hidden>
+        <div id="arrow"><div class="tri"></div></div>
+        <span id="arrow-dist"></span>
+      </div>
+
+      <div id="bottom-left">
+        <canvas id="minimap" width="210" height="210"></canvas>
+        <div id="location"></div>
+      </div>
+
+      <canvas id="speedo" width="150" height="150" hidden></canvas>
+
+      <div id="prompt" hidden></div>
+      <div id="hint"></div>
+      <div id="toast"><div id="toast-title"></div><div id="toast-sub"></div></div>
+      <div id="fps" hidden></div>
+    </div>
+
+    <div id="bigmap" hidden>
+      <div class="bigmap-head">
+        <strong>Mapa del Casco Viejo</strong>
+        <span>● Misiones &nbsp; ◆ Objetivo &nbsp; <b style="color:#3b82ff">●</b> Policía &nbsp;—&nbsp; Pulsa <kbd>M</kbd> para cerrar</span>
+      </div>
+      <canvas id="bigmap-canvas"></canvas>
+      <div class="bigmap-foot">Datos del mapa © OpenStreetMap contributors (ODbL)</div>
+    </div>
+
+    <div id="touch" hidden>
+      <div id="stick"><div id="knob"></div></div>
+      <div id="tbuttons">
+        <button data-key="KeyE">E</button>
+        <button data-key="Space">Freno</button>
+        <button data-key="KeyM">Mapa</button>
+      </div>
+    </div>
+
+    <div id="menu">
+      <div class="card">
+        <h1>Casco Viejo <span>Rush</span></h1>
+        <p class="tag">Sandbox urbano cartoon por las calles reales del Casco Viejo de Pamplona</p>
+        <div id="loading">Cargando el Casco Viejo…</div>
+        <button id="play" hidden>▶ Jugar</button>
+        <div class="controls">
+          <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / flechas — moverse / conducir</div>
+          <div><kbd>Ratón</kbd> — mover la cámara (clic para capturarlo)</div>
+          <div><kbd>E</kbd> — entrar / salir del coche</div>
+          <div><kbd>Espacio</kbd> — freno de mano</div>
+          <div><kbd>Shift</kbd> — correr (a pie)</div>
+          <div><kbd>M</kbd> — mapa grande &nbsp; <kbd>H</kbd> — ayuda &nbsp; <kbd>N</kbd> — sonido</div>
+          <div><kbd>R</kbd> — enderezar / reaparecer el coche &nbsp; <kbd>X</kbd> — abandonar misión</div>
+        </div>
+        <p class="small">Entra en los círculos de colores con un coche para empezar misiones. Si te busca la policía, sal de su vista para despistarla.</p>
+        <p class="small">Mapa: © OpenStreetMap contributors, ODbL. Juego original sin afiliación con ninguna otra franquicia.</p>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
